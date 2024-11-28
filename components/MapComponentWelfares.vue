@@ -15,6 +15,10 @@
         <div v-if="showSaveButton">
             <button @click="saveLayer">Save Layer</button>
         </div>
+        <div v-if="gridFeatures.length > 0">
+            <button @click="exportGridAsGeoJSON">Export Grid as GeoJSON</button>
+        </div>
+
     </div>
 </template>
 
@@ -253,6 +257,30 @@ const saveLayer = () => {
     downloadLink.download = 'grid_analysis_results.json';
     downloadLink.click();
 };
+
+const exportGridAsGeoJSON = () => {
+    // Memastikan gridFeatures berisi data
+    if (gridFeatures.length > 0) {
+        const geojson = {
+            type: 'FeatureCollection',
+            features: gridFeatures.map((gridFeature) => ({
+                type: 'Feature',
+                geometry: gridFeature.geometry,
+                properties: gridFeature.properties,
+            })),
+        };
+
+        // Menyimpan GeoJSON ke file atau menampilkan hasil
+        const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'grid-analysis.geojson';  // Nama file yang akan di-download
+        link.click();  // Memulai unduhan
+    } else {
+        alert('No grid data to export.');
+    }
+};
+
 
 onMounted(() => {
     map = new maplibregl.Map({
