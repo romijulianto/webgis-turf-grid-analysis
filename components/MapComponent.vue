@@ -66,6 +66,7 @@ const updateMapLayer = (grid: any) => {
         });
 
         // Tambahkan interaksi klik untuk menampilkan popup pada grid
+        // Fungsi untuk menangani klik pada grid
         map.on('click', 'grid-layer', (e: any) => {
             const coordinates = e.lngLat;
             const value = e.features[0].properties.value;
@@ -76,26 +77,23 @@ const updateMapLayer = (grid: any) => {
                 turf.booleanPointInPolygon(point.geometry, gridPolygon)
             );
 
-            const popupContent = pointsInGrid.map((point: any) => {
-                return `
-                    <div><strong>Location:</strong> ${point.properties.place}</div>
-                    <div><strong>Magnitude:</strong> ${point.properties.mag}</div>
-                    <div><strong>Time:</strong> ${new Date(point.properties.time).toLocaleString()}</div>
-                `;
-            }).join('<br>');
+            // Menjumlahkan magnitudo dari titik gempa yang ada dalam grid
+            const totalMagnitude = pointsInGrid.reduce((sum, point: any) => {
+                return sum + point.properties.mag; // Menjumlahkan magnitudo
+            }, 0);
 
-            if (popupContent) {
-                new Popup()
-                    .setLngLat(coordinates)
-                    .setHTML(`
-                        <strong>Grid Info:</strong><br>
-                        Value: ${value}<br><br>
-                        <strong>Earthquakes in this grid:</strong><br>
-                        ${popupContent}
-                    `)
-                    .addTo(map);
-            }
+            const popupContent = `
+        <div><strong>Grid Info:</strong><br>Value: ${value}</div>
+        <div><strong>Total Magnitude of Earthquakes in this grid:</strong> ${totalMagnitude}</div>
+    `;
+
+            // Tampilkan popup dengan jumlah magnitudo
+            new Popup()
+                .setLngLat(coordinates)
+                .setHTML(popupContent)
+                .addTo(map);
         });
+
     }
 };
 
