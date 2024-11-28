@@ -288,6 +288,7 @@ onMounted(() => {
         style: 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json',
         center: [117.0536, -0.6022],
         zoom: 8,
+        attributionControl: false,
     });
 });
 </script>
