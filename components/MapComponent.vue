@@ -1,6 +1,5 @@
 <template>
     <div>
-        <!-- UI untuk range filter dan tombol Execute -->
         <div style="margin-bottom: 1rem;">
             <label for="minMag">Min Magnitude: </label>
             <input id="minMag" type="number" v-model="minMag" :min="0" :max="10" step="0.1"
@@ -13,7 +12,6 @@
             <button @click="executeFilter">Execute</button>
         </div>
 
-        <!-- Container peta -->
         <div ref="mapContainer" style="width: 100%; height: 500px;"></div>
     </div>
 </template>
@@ -24,24 +22,19 @@ import maplibregl, { Map, Popup } from 'maplibre-gl';
 import axios from 'axios';
 import * as turf from '@turf/turf';
 
-// Referensi elemen peta
 const mapContainer = ref<HTMLDivElement | null>(null);
 let map: Map;
 
-// Variabel untuk filter range magnitude
-const minMag = ref<number>(1); // Default nilai minimum
-const maxMag = ref<number>(2); // Default nilai maksimum
+const minMag = ref<number>(1);
+const maxMag = ref<number>(2);
 
-// Titik gempa yang akan ditampilkan
+
 let earthquakePoints: any[] = [];
 
-// Fungsi utama untuk memperbarui data peta
 const updateMapLayer = (grid: any) => {
-    // Periksa apakah source dan layer 'grid' sudah ada
     if (map.getSource('grid')) {
-        map.getSource('grid')!.setData(grid); // Perbarui data
+        map.getSource('grid')!.setData(grid);
     } else {
-        // Jika belum ada, tambahkan source dan layer baru
         map.addSource('grid', {
             type: 'geojson',
             data: grid,
@@ -65,21 +58,17 @@ const updateMapLayer = (grid: any) => {
             },
         });
 
-        // Tambahkan interaksi klik untuk menampilkan popup pada grid
-        // Fungsi untuk menangani klik pada grid
         map.on('click', 'grid-layer', (e: any) => {
             const coordinates = e.lngLat;
             const value = e.features[0].properties.value;
 
-            // Analisis titik gempa yang ada di dalam grid yang dipilih
             const gridPolygon = e.features[0].geometry;
             const pointsInGrid = earthquakePoints.filter((point: any) =>
                 turf.booleanPointInPolygon(point.geometry, gridPolygon)
             );
 
-            // Menjumlahkan magnitudo dari titik gempa yang ada dalam grid
             const totalMagnitude = pointsInGrid.reduce((sum, point: any) => {
-                return sum + point.properties.mag; // Menjumlahkan magnitudo
+                return sum + point.properties.mag;
             }, 0);
 
             const popupContent = `
@@ -87,7 +76,6 @@ const updateMapLayer = (grid: any) => {
         <div><strong>Total Magnitude of Earthquakes in this grid:</strong> ${totalMagnitude}</div>
     `;
 
-            // Tampilkan popup dengan jumlah magnitudo
             new Popup()
                 .setLngLat(coordinates)
                 .setHTML(popupContent)
@@ -97,7 +85,6 @@ const updateMapLayer = (grid: any) => {
     }
 };
 
-// Fungsi utama untuk mengambil data dan memplot grid dan titik gempa
 const fetchDataAndPlot = async () => {
     try {
         const response = await axios.get(
@@ -105,7 +92,6 @@ const fetchDataAndPlot = async () => {
         );
         const earthquakeData = response.data;
 
-        // Filter: hanya gempa dengan magnitude dalam range [minMag, maxMag]
         const filteredFeatures = earthquakeData.features.filter(
             (feature: any) =>
                 feature.properties.mag >= minMag.value &&
@@ -123,15 +109,12 @@ const fetchDataAndPlot = async () => {
             type: 'FeatureCollection',
             features: filteredFeatures,
         };
-
-        // Titik gempa untuk ditampilkan di peta
         earthquakePoints = filteredFeatures.map((feature: any) => ({
             type: 'Feature',
             geometry: feature.geometry,
             properties: feature.properties,
         }));
 
-        // Plot titik gempa
         if (map.getSource('earthquake-points')) {
             map.getSource('earthquake-points')!.setData({
                 type: 'FeatureCollection',
@@ -158,18 +141,15 @@ const fetchDataAndPlot = async () => {
             });
         }
 
-        // Tentukan batas (bounding box) untuk area peta
         const bbox = turf.bbox(filteredGeoJSON);
         const grid = turf.squareGrid(bbox, 100, { units: 'kilometers' });
-
-        // Filter grid hanya untuk yang memenuhi kriteria
         grid.features = grid.features.filter((cell) => {
             const count = filteredFeatures.filter((feature: any) =>
                 turf.booleanPointInPolygon(feature.geometry.coordinates, cell)
             ).length;
 
-            cell.properties.value = count; // Tambahkan properti value
-            return count > 0; // Hanya grid dengan value > 0
+            cell.properties.value = count;
+            return count > 0;
         });
 
         if (grid.features.length === 0) {
@@ -178,34 +158,29 @@ const fetchDataAndPlot = async () => {
             return;
         }
 
-        // Perbarui layer di peta untuk grid
         updateMapLayer(grid);
     } catch (error) {
         console.error('Error fetching or processing data:', error);
     }
 };
 
-// Fungsi untuk memperbarui data dan memplot peta
 const executeFilter = async () => {
     await fetchDataAndPlot();
 };
 
-// Inisialisasi peta
 onMounted(() => {
     map = new maplibregl.Map({
         container: mapContainer.value as HTMLElement,
         style: 'https://basemaps.cartocdn.com/gl/positron-nolabels-gl-style/style.json',
-        center: [117.25, -2.5], // Fokus pada wilayah Indonesia
+        center: [117.25, -2.5],
         zoom: 4,
     });
 
-    // Pastikan peta siap sebelum memuat data awal
     map.on('load', fetchDataAndPlot);
 });
 </script>
 
 <style>
-/* Gaya tambahan */
 button {
     padding: 0.5rem 1rem;
     background-color: #007cbf;
