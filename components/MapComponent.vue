@@ -32,6 +32,9 @@ let map: Map;
 const minMag = ref<number>(1); // Default nilai minimum
 const maxMag = ref<number>(2); // Default nilai maksimum
 
+// Titik gempa yang akan ditampilkan
+let earthquakePoints: any[] = [];
+
 // Fungsi utama untuk memperbarui data peta
 const updateMapLayer = (grid: any) => {
     // Periksa apakah source dan layer 'grid' sudah ada
@@ -62,20 +65,41 @@ const updateMapLayer = (grid: any) => {
             },
         });
 
-        // Tambahkan interaksi klik untuk menampilkan popup
+        // Tambahkan interaksi klik untuk menampilkan popup pada grid
         map.on('click', 'grid-layer', (e: any) => {
             const coordinates = e.lngLat;
             const value = e.features[0].properties.value;
 
-            new Popup()
-                .setLngLat(coordinates)
-                .setHTML(`<strong>Grid Info:</strong><br>Value: ${value}`)
-                .addTo(map);
+            // Analisis titik gempa yang ada di dalam grid yang dipilih
+            const gridPolygon = e.features[0].geometry;
+            const pointsInGrid = earthquakePoints.filter((point: any) =>
+                turf.booleanPointInPolygon(point.geometry, gridPolygon)
+            );
+
+            const popupContent = pointsInGrid.map((point: any) => {
+                return `
+                    <div><strong>Location:</strong> ${point.properties.place}</div>
+                    <div><strong>Magnitude:</strong> ${point.properties.mag}</div>
+                    <div><strong>Time:</strong> ${new Date(point.properties.time).toLocaleString()}</div>
+                `;
+            }).join('<br>');
+
+            if (popupContent) {
+                new Popup()
+                    .setLngLat(coordinates)
+                    .setHTML(`
+                        <strong>Grid Info:</strong><br>
+                        Value: ${value}<br><br>
+                        <strong>Earthquakes in this grid:</strong><br>
+                        ${popupContent}
+                    `)
+                    .addTo(map);
+            }
         });
     }
 };
 
-// Fungsi utama untuk mengambil data dan memplot grid
+// Fungsi utama untuk mengambil data dan memplot grid dan titik gempa
 const fetchDataAndPlot = async () => {
     try {
         const response = await axios.get(
@@ -102,6 +126,41 @@ const fetchDataAndPlot = async () => {
             features: filteredFeatures,
         };
 
+        // Titik gempa untuk ditampilkan di peta
+        earthquakePoints = filteredFeatures.map((feature: any) => ({
+            type: 'Feature',
+            geometry: feature.geometry,
+            properties: feature.properties,
+        }));
+
+        // Plot titik gempa
+        if (map.getSource('earthquake-points')) {
+            map.getSource('earthquake-points')!.setData({
+                type: 'FeatureCollection',
+                features: earthquakePoints,
+            });
+        } else {
+            map.addSource('earthquake-points', {
+                type: 'geojson',
+                data: {
+                    type: 'FeatureCollection',
+                    features: earthquakePoints,
+                },
+            });
+
+            map.addLayer({
+                id: 'earthquake-points-layer',
+                type: 'circle',
+                source: 'earthquake-points',
+                paint: {
+                    'circle-radius': 6,
+                    'circle-color': '#ff6666',
+                    'circle-opacity': 0.8,
+                },
+            });
+        }
+
+        // Tentukan batas (bounding box) untuk area peta
         const bbox = turf.bbox(filteredGeoJSON);
         const grid = turf.squareGrid(bbox, 100, { units: 'kilometers' });
 
@@ -121,7 +180,7 @@ const fetchDataAndPlot = async () => {
             return;
         }
 
-        // Perbarui layer di peta
+        // Perbarui layer di peta untuk grid
         updateMapLayer(grid);
     } catch (error) {
         console.error('Error fetching or processing data:', error);
