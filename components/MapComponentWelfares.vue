@@ -45,7 +45,6 @@ const fetchDataAndPlot = async () => {
         const cqlFamilyCard = `region_id = '${regionId.value}'`;
         const cqlWelfare = `avg_monthly_income >= ${minIncome.value} AND region_id = '${regionId.value}'`;
 
-        // Mengambil data family_card dan welfare secara bersamaan
         const [familyCardData, welfareData] = await Promise.all([
             axios.get(`https://desa-proaktif.app.barraslogi.id/geoserver/Desa-Proaktif/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=Desa-Proaktif:family_cards&outputFormat=application/json&CQL_FILTER=${cqlFamilyCard}`),
             axios.get(`https://desa-proaktif.app.barraslogi.id/geoserver/Desa-Proaktif/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=Desa-Proaktif:welfares&outputFormat=application/json&CQL_FILTER=${cqlWelfare}`)
@@ -53,7 +52,6 @@ const fetchDataAndPlot = async () => {
         console.log('Family Card Data:', familyCardData.data);
         console.log('Welfare Data:', welfareData.data);
 
-        // Memeriksa apakah data ada dan formatnya benar
         if (!familyCardData || !familyCardData.data || !Array.isArray(familyCardData.data.features)) {
             console.error('Invalid family card data', familyCardData);
             alert('Family card data is invalid or empty.');
@@ -66,21 +64,17 @@ const fetchDataAndPlot = async () => {
             return;
         }
 
-        // Set the filtered points for Family Cards and Welfares
         familyCardPoints = familyCardData.data.features;
         welfarePoints = welfareData.data.features;
 
-        // Check if the results are empty
         if (familyCardPoints.length === 0 || welfarePoints.length === 0) {
             alert('No data found based on the filters.');
             return;
         }
 
-        // Plot Family Cards and Welfares first
         plotFamilyCardLayer(familyCardPoints);
         plotWelfareLayer(welfarePoints);
 
-        // Proceed to Grid Analysis after plotting
         performGridAnalysis();
     } catch (error) {
         console.error('Error fetching or processing data:', error);
@@ -145,19 +139,17 @@ const plotWelfareLayer = (points: any[]) => {
 };
 
 const performGridAnalysis = () => {
-    // Define the bounding box for the grid based on welfare and family card data
     const bbox = turf.bbox({
         type: 'FeatureCollection',
         features: [...familyCardPoints, ...welfarePoints],
     });
 
-    console.log('Bounding Box:', bbox); // Debugging bounding box
+    console.log('Bounding Box:', bbox); 
 
     const grid = turf.squareGrid(bbox, 1, { units: 'kilometers' });
 
-    console.log('Generated Grid:', grid); // Debugging grid features
+    console.log('Generated Grid:', grid);
 
-    // Filter the grid based on points from family cards and welfares
     gridFeatures = grid.features.filter((cell) => {
         const familyCardCount = familyCardPoints.filter((point: any) =>
             turf.booleanPointInPolygon(point.geometry, cell)
@@ -168,7 +160,6 @@ const performGridAnalysis = () => {
         ).length;
 
         if (familyCardCount > 0 && welfareCount > 0) {
-            // Add aggregated properties
             cell.properties = {
                 family_card_count: familyCardCount,
                 welfare_count: welfareCount,
@@ -178,9 +169,7 @@ const performGridAnalysis = () => {
         return false;
     });
 
-    console.log('Filtered Grid Features:', gridFeatures); // Debugging filtered grid features
-
-    // Plot the grid analysis results
+    console.log('Filtered Grid Features:', gridFeatures);
     updateMapLayer(gridFeatures);
 };
 
@@ -219,7 +208,7 @@ const updateMapLayer = (grid: any) => {
                 'fill-opacity': 1,
             },
             layerOptions: {
-                'layer-z-index': 10,  // Pastikan ini berada di atas layer lain
+                'layer-z-index': 10,
             },
         });
 
@@ -259,7 +248,6 @@ const saveLayer = () => {
 };
 
 const exportGridAsGeoJSON = () => {
-    // Memastikan gridFeatures berisi data
     if (gridFeatures.length > 0) {
         const geojson = {
             type: 'FeatureCollection',
@@ -270,17 +258,15 @@ const exportGridAsGeoJSON = () => {
             })),
         };
 
-        // Menyimpan GeoJSON ke file atau menampilkan hasil
         const blob = new Blob([JSON.stringify(geojson, null, 2)], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = 'grid-analysis.geojson';  // Nama file yang akan di-download
-        link.click();  // Memulai unduhan
+        link.download = 'grid-analysis.geojson';
+        link.click();
     } else {
         alert('No grid data to export.');
     }
 };
-
 
 onMounted(() => {
     map = new maplibregl.Map({
